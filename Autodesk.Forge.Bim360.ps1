@@ -231,7 +231,7 @@ function Get-HubUser
         $ThreeLegged
     )
 
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
 
     if ($Name) {$User = $Name} elseif ($Email) {$User = $Email}
 
@@ -396,7 +396,7 @@ function Get-B360ProjectFromAPI
         $ThreeLegged
     )
     # coerce $Hub to [Hub] from (tab-completed) [String]
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $AccountId = $Hub.id | ConvertTo-B360Id
 
     $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
@@ -460,7 +460,7 @@ function Add-ProjectAdmin
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     $AccountId = $Hub.id | ConvertTo-B360Id
@@ -735,8 +735,8 @@ function Get-ProjectRoles
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     # get $ProjectRoles from cloud source or local cache
@@ -805,8 +805,8 @@ function ProjectRoleCompleter
     if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
     
     $ProjectRoles = Get-ProjectRoles $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
@@ -860,8 +860,8 @@ function Get-ProjectRole
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     $ProjectRole = Get-ProjectRoles $Hub $Project | where {$_.name -eq $RoleName}
@@ -909,8 +909,8 @@ function Get-ProjectUsers
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     if ( (-not $Project.users) -or ($Force) )
@@ -992,8 +992,8 @@ function ProjectUserCompleter
     if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
     $ProjectUsers = Get-ProjectUsers -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
 
@@ -1058,8 +1058,8 @@ function Get-ProjectUser
     )
     
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     if ($Name) {$User = $Name} elseif ($Email) {$User = $Email}
@@ -1155,8 +1155,8 @@ function ConvertTo-User
     }
     elseif ($User -is [String])
     {
-        $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-        $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+        $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+        $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
         $Hub = $Project.hub
             
         if ($null -eq $Hub)
@@ -1219,8 +1219,8 @@ function Format-UserForProjectImport
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
     $User = ConvertTo-User -Hub $Hub -Project $Project -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
@@ -1357,8 +1357,8 @@ function Add-ProjectUsers
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     # gather other info for REST API call
@@ -1480,8 +1480,8 @@ function Add-ProjectUser
         $ThreeLegged
     )
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
     $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
