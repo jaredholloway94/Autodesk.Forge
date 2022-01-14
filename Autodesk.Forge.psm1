@@ -8,11 +8,11 @@
 
 # Main Module ____________________________________________________________________________________________________
 
-. (Join-Path $PSScriptRoot Autodesk.Forge.Enums.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.Utils.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.UserInput.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.Secrets.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.OAuth.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.DataManagement.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.Bim360.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.C4R.ps1)
+. (Join-Path $PSScriptRoot "Autodesk.Forge.Enums.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.Utils.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.UserInput.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.Secrets.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.OAuth.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.DataManagement.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.Bim360.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.C4R.ps1")

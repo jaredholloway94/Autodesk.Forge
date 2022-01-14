@@ -6,9 +6,9 @@
 #   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-. (Join-Path $PSScriptRoot Autodesk.Forge.Enums.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.Utils.ps1)
-. (Join-Path $PSScriptRoot Autodesk.Forge.DataManagement.ps1)
+. (Join-Path $PSScriptRoot "Autodesk.Forge.Enums.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.Utils.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.DataManagement.ps1")
 
 
 # BIM 360 API - Companies ________________________________________________________________________________________
@@ -44,7 +44,7 @@ function Get-HubUsers
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
 
     if ((-not $Hub.users) -or ($Force))
     {
@@ -53,7 +53,7 @@ function Get-HubUsers
         $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
 
         # BIM 360 API can only retrieve 100 HubUsers at a time. Use this batch function to get all HubUsers at once.
-        function batch ($i)
+        function Get-HubUsers_batch ($i)
         {
             $request = @{
                 Uri = "https://developer.api.autodesk.com/hq/v1/accounts/$AccountId/users?limit=100&offset=$i"
@@ -71,11 +71,11 @@ function Get-HubUsers
             {
                 $response | foreach { $null = $HubUsers.Add($_) }
                 $i += 100
-                batch $i 
+                Get-HubUsers_batch $i 
             }
         }
         
-        batch 0
+        Get-HubUsers_batch 0
     }
     else
     {
@@ -374,7 +374,7 @@ function Get-B360ProjectFromAPI
 {
     <#
         .SYNOPSIS
-        Get one B360Project by exact Id.
+        Get one B360Project by exact id.
 
         .LINK
         https://forge.autodesk.com/en/docs/bim360/v1/reference/http/projects-:project_id-GET/  
@@ -460,7 +460,8 @@ function Add-ProjectAdmin
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
 
     $AccountId = $Hub.id | ConvertTo-B360Id
     $ProjectId = $Project.id | ConvertTo-B360Id
@@ -736,12 +737,13 @@ function Get-ProjectRoles
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
 
     # get $ProjectRoles from cloud source or local cache
     if ((-not $Project.roles) -or ($Force))
     {
-        $AccountId = $Hub.id | ConvertTo-B360Id
-        $ProjectId = $Project.Id
+        $AccountId = ConvertTo-B360Id $Hub.id
+        $ProjectId = ConvertTo-B360Id $Project.id
         $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
         $request = @{
             Uri = "https://developer.api.autodesk.com/hq/v2/accounts/$AccountId/projects/$ProjectId/industry_roles"
@@ -805,6 +807,8 @@ function ProjectRoleCompleter
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
+    
     $ProjectRoles = Get-ProjectRoles $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectRoleList =  $ProjectRoles | foreach {$_.name}
@@ -858,6 +862,7 @@ function Get-ProjectRole
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
 
     $ProjectRole = Get-ProjectRoles $Hub $Project | where {$_.name -eq $RoleName}
 
@@ -906,6 +911,7 @@ function Get-ProjectUsers
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
 
     if ( (-not $Project.users) -or ($Force) )
     {
@@ -988,6 +994,7 @@ function ProjectUserCompleter
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
     $ProjectUsers = Get-ProjectUsers -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectUserDict = @{}
@@ -1053,6 +1060,7 @@ function Get-ProjectUser
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
 
     if ($Name) {$User = $Name} elseif ($Email) {$User = $Email}
 
@@ -1149,7 +1157,8 @@ function ConvertTo-User
     {
         $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
         $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
-        
+        $Hub = $Project.hub
+            
         if ($null -eq $Hub)
         {
             throw "Can't convert `$User:  No valid `$Hub provided."
@@ -1210,8 +1219,9 @@ function Format-UserForProjectImport
     )
 
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = $Project.hub
     $User = ConvertTo-User -Hub $Hub -Project $Project -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
     # email
@@ -1347,12 +1357,13 @@ function Add-ProjectUsers
     )
 
     # coerce tab-completed args from strings to objects
-    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
 
     # gather other info for REST API call
     $AccountId = $Hub.id | ConvertTo-B360Id
-    $ProjectId = $Project.Id | ConvertTo-B360Id
+    $ProjectId = $Project.id | ConvertTo-B360Id
     $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged
 
     # format UsersList for REST API call
@@ -1469,7 +1480,8 @@ function Add-ProjectUser
         $ThreeLegged
     )
     # coerce tab-completed args from strings to objects
-    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
     $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
