@@ -2,7 +2,7 @@
 
 A set of PowerShell Cmdlets for interacting with the Autodesk Forge APIs.
 
-These cmdlets are design for BIM management purposes, and are biased accordingly.
+These cmdlets are designed for BIM management purposes, and are biased accordingly.
 
 INSTALLATION
 
