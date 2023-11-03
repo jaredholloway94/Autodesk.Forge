@@ -254,7 +254,7 @@ function Get-Projects
     {
         # get $Projects from API call
         $HubId = $Hub.id
-        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
+        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub
         $request = @{
             Uri = "https://developer.api.autodesk.com/project/v1/hubs/$HubId/projects"
             Method = "GET"
@@ -420,7 +420,7 @@ function Get-ProjectFromAPI
     $Project = ConvertTo-
     $ProjectId = $ProjectId | ConvertFrom-B360Id
 
-    $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub
     $request = @{
         Uri = "https://developer.api.autodesk.com/project/v1/hubs/$HubId/projects/$ProjectId"
         Method = "GET"
@@ -475,7 +475,7 @@ function ConvertTo-Project
     {
         return $null
     }
-    elseif (($Project -is [PSCustomObject]) -and ($Project.type) -and ($Project.type -eq 'projects'))
+    elseif ($Project -is [PSCustomObject])
     {
         return $Project
     }
@@ -490,7 +490,6 @@ function ConvertTo-Project
         throw "`$Project is unknown type."
     }
 }
-
 
 function Get-RootFolders
 {
@@ -528,7 +527,7 @@ function Get-RootFolders
     { 
         $HubId = $Hub.id
         $ProjectId = $Project.id
-        $AccessToken = Get-AccessToken -Scope "data:read"
+        $AccessToken = Get-AccessToken -Scope "data:read" -Force:$Force -ThreeLegged:$ThreeLegged -Hub $Hub -Project $Project
 
         $request = @{
             Uri = "https://developer.api.autodesk.com/project/v1/hubs/$HubId/projects/$ProjectId/topFolders?projectFilesOnly=true"
@@ -664,7 +663,7 @@ function Get-Contents
     
     if ((-not $Folder.contents) -or ($Force))
     {
-        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
+        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub -Project $Project
         $ProjectId = $Folder.project.id
         $FolderId = $Folder.id
 
@@ -673,7 +672,7 @@ function Get-Contents
             Method = "GET"
             Headers = @{Authorization = "$($AccessToken.token_type) $($AccessToken.access_token)"}
         }
-        $response = Invoke-RestMethod $request
+        $response = Invoke-RestMethod @request
         $null = $Global:RequestResponseHistory.Add(@{
             function = $MyInvocation.MyCommand.Name
             request = $request
@@ -682,28 +681,21 @@ function Get-Contents
 
         $Contents = $response.data
     }
-    else
-    {
-        $Contents = $Folder.contents
-    }
+	else
+	{ 
+		$Contents = $Folder.contents
+	}
 
-    if ($Contents)
-    {
-        $Contents | foreach {
-            Add-Member -InputObject $_ -NotePropertyName 'parent' -NotePropertyValue $Folder -Force
-            Add-Member -InputObject $_ -NotePropertyName 'project' -NotePropertyValue $Folder.project -Force
-        }
+	$Contents | foreach {
+		Add-Member -InputObject $_ -NotePropertyName 'parent' -NotePropertyValue $Folder -Force
+		Add-Member -InputObject $_ -NotePropertyName 'project' -NotePropertyValue $Folder.project -Force
+	}
 
-        $Folder | foreach {
-            Add-Member -InputObject $_ -NotePropertyName 'contents' -NotePropertyValue $Contents -Force
-        }
+	$Folder | foreach {
+		Add-Member -InputObject $_ -NotePropertyName 'contents' -NotePropertyValue $Contents -Force
+	}
 
-        return $Contents
-    }
-    else
-    {
-        throw "Contents not found."
-    }
+	return $Contents
 }
 
 function Get-Files
@@ -793,11 +785,12 @@ function FileNameCompleter
     }
 }
 
+
 function Get-File
 {
     <#
     .SYNOPSIS
-    Pick one file from folder (with tab-completion).
+    Pick one file from folder (with tab-completion (maybe)).
     #>
 
     [CmdletBinding()]
@@ -834,6 +827,7 @@ function Get-File
     return $File
 }
 
+
 function Get-Folders
 {
     <#
@@ -869,11 +863,112 @@ function Get-Folders
     return $Folders
 }
 
+
+function Get-FullPath
+{
+	<#
+	.SYNOPSIS
+	Get the full path from the BIM360 Docs root directory to an item (folder or file).
+	#>
+	
+	[CmdletBinding()]
+	
+	param
+	(
+		[Parameter(Mandatory,ValueFromPipeline)]
+        $Item,
+
+        # Include deleted (aka 'hidden') items in results
+        [Alias('h')]
+        [Switch]
+        $IncludeHidden,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
+        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        [Switch]
+        $ThreeLegged
+	)
+	
+	$FullPath = "/"+$Item.attributes.displayName
+	
+	if ($Item.parent)
+	{
+		$FullPath = $(Get-FullPath $Item.parent -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged) + $FullPath
+	}
+	
+	return $FullPath
+}
+
+
+function Get-ItemDetails
+{
+    <#
+    .LINK
+    https://aps.autodesk.com/en/docs/data/v2/reference/http/projects-project_id-items-item_id-GET/
+    #>
+
+    [CmdletBinding()]
+
+    param
+    (
+        [Parameter(Mandatory,ValueFromPipeline)]
+        $Item,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
+        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        [Switch]
+        $ThreeLegged
+    )
+    
+	# only retrieve from API if there is no cached value or $Force arg is applied
+    if ((-not $Item.details) -or ($Force))
+    {
+        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub -Project $Project
+        $ProjectId = $Item.project.id
+		$ItemId = $Item.id
+
+        $request = @{
+            Uri = "https://developer.api.autodesk.com/data/v1/projects/$($ProjectId)/items/$($ItemId)?includePathInProject=true"
+            Method = "GET"
+            Headers = @{Authorization = "$($AccessToken.token_type) $($AccessToken.access_token)"}
+        }
+        $response = Invoke-RestMethod @request
+        $null = $Global:RequestResponseHistory.Add(
+			@{
+				function = $MyInvocation.MyCommand.Name
+				request = $request
+				response = $response
+			}
+		)
+
+        $Details = $response.included
+		
+		# (over)write retrieved data to the Item
+		Add-Member -InputObject $Item -NotePropertyName 'details' -NotePropertyValue $Details -Force
+    }
+	else
+	{ 
+		$Details = $Item.details
+	}
+
+	return $Details
+}
+
+
 function Search-Folder
 {
     <#
     .SYNOPSIS
-    Recursively search all files in $Folder for...
+    Search all files in $Folder for $FileName  or  $FileType  or  $ParentName.
+	Optional recursion.
     #>
     
     [CmdletBinding()]
@@ -894,6 +989,11 @@ function Search-Folder
         # $Results | where {$_.parent.attributes.name -like "*$ParentName*"}
         [Parameter()]
         $ParentName,
+		
+		# Recursively search subfolders
+		[Alias('r')]
+		[Switch]
+		$Recursive,
 
         # Include deleted (aka 'hidden') items in results
         [Alias('h')]
@@ -910,32 +1010,52 @@ function Search-Folder
         $ThreeLegged
     )
 
-    # init collector array
-    $Private:Results = [System.Collections.ArrayList]@()
+    # init search results collector array
+    $Results = @()
+	$Files = Get-Files $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged
+	$SubFolders = Get-Folders $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged
+	
+	# add hits to $Results array
+	Foreach ($File in $Files)
+	{
+		if
+		(
+			(($FileName) -and ($File.attributes.displayName -like "*$FileName*")) -or
+			(($FileType) -and ($File.attributes.displayName -like "*$FileType")) -or
+			(($ParentName) -and ($File.parent.attributes.name -like "*$ParentName*"))
+		)
+		{
+			$Results += $File
+		}
+	}
+	
+	# optionally, recurse
+	if ($Recursive)
+	{
+		Foreach ($SubFolder in $SubFolders)
+		{
+			$Results += $( Search-Folder `
+				-Folder:$SubFolder `
+				-FileName:$FileName `
+				-FileType:$FileType `
+				-ParentName:$ParentName `
+				-IncludeHidden:$IncludeHidden `
+				-Force:$Force `
+				-ThreeLegged:$ThreeLegged `
+				-Recursive:$Recursive
+			)
+		}
+	}
 
-    # add file-items to collector array
-    $Private:FileItems = Get-Files $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged
-    foreach ($FileItem in $FileItems) {$null = $Results.Add($FileItem)}
-
-    # recurse on folder-items
-    $Private:FolderItems = Get-Folders $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged
-    foreach ($FolderItem in $FolderItems) {
-        $Private:SubResults = Search-Folder $FolderItem -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged
-        foreach ($SubResult in $SubResults) {$null = $Results.Add($SubResult)}
-    }
-
-    # filter collector array
-    if ($FileName) { $Results = $Results | where {$_.attributes.displayName -like "*$FileName*"} }
-    if ($FileType) { $Results = $Results | where {$_.attributes.displayName -like "*$FileType"} }
-    if ($ParentName) { $Results = $Results | where {$_.parent.attributes.name -like "*$ParentName*"} }
-
-    # return collector array
+    # return search results collector array
     return $Results
 }
 
 function Search-ProjectFiles
 {
     <#
+	.SYNOPSIS
+	
     #>
 
     [CmdletBinding()]
@@ -991,6 +1111,7 @@ function Search-ProjectFiles
         FileName = $FileName 
         FileType = $FileType 
         ParentName = $ParentName 
+		Recursive = $True
         IncludeHidden = $IncludeHidden 
         Force = $Force
         ThreeLegged = $ThreeLegged
@@ -1002,7 +1123,7 @@ function Search-ProjectFiles
 }
 
 
-<# this garbage API function doesn't work ('known issue'):
+<# this API function doesn't work ('known issue'):
    https://stackoverflow.com/questions/69809837/autodesk-forge-data-management-api-too-many-requests-on-search
 
 function Search-FolderContents {
@@ -1032,3 +1153,124 @@ function Search-FolderContents {
 }
 
 #>
+
+
+function Get-ProjectRevitModels
+{
+	<#
+	.SYNOPSIS
+	Exports all info required by Revit API to work with cloud workshared models, to JSON format.
+	#>
+	
+	[CmdletBinding()]
+	
+	param
+	(
+		[Parameter()]
+        [ArgumentCompleter({ HubNameCompleter @args })]
+        $Hub,
+
+        [Parameter(ValueFromPipeline)]
+        [ArgumentCompleter({ ProjectNameCompleter @args })]
+        $Project,
+
+        # Include deleted (aka 'hidden') items in results
+        [Alias('h')]
+        [Switch]
+        $IncludeHidden,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
+        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        [Switch]
+        $ThreeLegged
+	)
+	
+	# Get all .rvt files from BIM360 Project Files
+	$Models = Search-ProjectFiles -Hub:$Hub -Project:$Project -FileType:"rvt" -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged
+	
+	# Attach detailed metadata to each Model item (includes C4R projectGuid and modelGuid)
+	$null = $( $Models | foreach { Get-ItemDetails $_ } )
+	
+	return $Models
+}
+
+
+function Export-RevitModelInfo
+{
+	<#
+	.SYNOPSIS
+	Exports all info required by Revit API to work with cloud workshared models, to JSON format.
+	#>
+	
+	[CmdletBinding()]
+	
+	param
+	(
+		[Parameter()]
+        [ArgumentCompleter({ HubNameCompleter @args })]
+        $Hub,
+
+        [Parameter(ValueFromPipeline)]
+        [ArgumentCompleter({ ProjectNameCompleter @args })]
+        $Project,
+		
+		# Where to save the exported JSON file
+		[Parameter()]
+        $Filepath,
+
+        # Include deleted (aka 'hidden') items in results
+        [Alias('h')]
+        [Switch]
+        $IncludeHidden,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
+        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        [Switch]
+        $ThreeLegged
+	)
+	
+	$Hub = ConvertTo-Hub $Hub
+	$Project = ConvertTo-Project $Hub $Project
+	
+	# Default location to save exported JSON file
+	if (-not $Filepath)
+	{
+		$Filename = "$($Project.attributes.name)" + "_models.json"
+		$Filepath = Join-Path "$HOME/Desktop" "$Filename"
+	}
+	
+	# Extract and format Revit model info for use with Revit API
+	# Convert to JSON and export to $Filepath
+	Get-ProjectRevitModels -Hub:$Hub -Project:$Project | foreach {
+		@{
+			"account" = @{
+				"name" = $_.project.hub.attributes.name
+				"id" = $(ConvertTo-B360Id $_.project.hub.id)
+				}
+			"project" = @{
+				"name" = $_.project.attributes.name
+				"id" = $(ConvertTo-B360Id $_.project.id)
+				"guid" = $_.details.attributes.extension.data.projectGuid
+				}
+			"folder" = @{
+				"name" = $(Get-FullPath $_.parent)
+				"urn" = $_.parent.id
+				}
+			"model" = @{
+				"name" = $_.attributes.displayName
+				"urn" = $_.id
+				"guid" = $_.details.attributes.extension.data.modelGuid
+				}
+		}
+	} | ConvertTo-Json | Out-File "$Filepath"
+	
+	return $Filepath
+}
