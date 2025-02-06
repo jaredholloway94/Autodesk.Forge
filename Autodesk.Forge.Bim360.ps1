@@ -916,27 +916,37 @@ function Get-ProjectUsers
     if ( (-not $Project.users) -or ($Force) )
     {
         $ProjectUsers = [System.Collections.ArrayList]@()
-        $ProjectId = $Project.id
+        $ProjectId = ConvertTo-B360Id $Project.id
         $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
 
-        function batch ($uri="https://developer.api.autodesk.com/bim360/admin/v1/projects/$ProjectId/users?limit=200")
+        function batch ($uri="https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId/users?limit=200")
         {
             $request = @{
                 Uri = $uri
                 Method = "GET"
-                Headers = @{"Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"}
+                Headers = @{
+                    "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"
+                }
             }
+
             $response = Invoke-RestMethod @request
+
             # cache request,response pair for debugging
-            $null = $Global:RequestResponseHistory.Add(@{
-                function = $MyInvocation.MyCommand.Name
-                request = $request
-                response = $response
-            })
+            $null = $Global:RequestResponseHistory.Add(
+                @{
+                    function = $MyInvocation.MyCommand.Name
+                    request = $request
+                    response = $response
+                }
+            )
 
             $response.results | foreach {$null = $ProjectUsers.Add($_)}
+
             # pagination docs: https://forge.autodesk.com/en/docs/data/v2/developers_guide/filtering/#pagination
-            if ($response.pagination.nextUrl) {batch $response.pagination.nextUrl}
+            if ($response.pagination.nextUrl)
+            {
+                batch $response.pagination.nextUrl
+            }
         }
 
         batch
@@ -1155,13 +1165,16 @@ function ConvertTo-User
     }
     elseif ($User -is [String])
     {
-        $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+        $Hub = ConvertTo-Hub -Hub:$Hub -Force:$Force -ThreeLegged:$ThreeLegged
         $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
-        $Hub = $Project.hub
-            
+
+        if ($null -ne $Project)
+        {
+            $Hub = $Project.hub
+        }
         if ($null -eq $Hub)
         {
-            throw "Can't convert `$User:  No valid `$Hub provided."
+            throw "Can't convert User:  No valid Hub provided."
         }
         elseif ($null -eq $Project)
         {
@@ -1176,7 +1189,7 @@ function ConvertTo-User
     }
     else
     {
-        throw "Can't convert `$User:  `$User is unexpected type."
+        throw "Can't convert User:  User is unexpected type."
     }
 }
 
@@ -1239,11 +1252,11 @@ function Format-UserForProjectImport
     # company_id
     if ($User.company_id)
     {
-        $UserDict.company_id = $User.company_id
+        $UserDict.companyId = $User.company_id
     }
     elseif ($User.companyId)
     {
-        $UserDict.company_id = $User.companyId
+        $UserDict.companyId = $User.companyId
     }
     elseif ($User.Project)
     {
@@ -1251,13 +1264,39 @@ function Format-UserForProjectImport
 
         if ($HubUser.company_id)
         {
-            $UserDict.company_id = [System.Collections.ArrayList]@($HubUser.default_role_id)
+            $UserDict.companyId = [System.Collections.ArrayList]@($HubUser.default_role_id)
         }
     }
     else
     {
-        $UserDict.company_id = '' # BAD! AVOID THIS!
+        $UserDict.companyId = '' # BAD! AVOID THIS!
     }
+
+    # # admin/User
+    # if (
+    #     ($User.access_level -in ('project_admin','account_admin')) `
+    #     -or ($User.accessLevels.projectAdmin -eq $true) `
+    #     -or ($User.accessLevels.accountAdmin -eq $true) `
+    #     -or ($Admin)
+    # )
+    # {
+    #     $UserDict.services = @{
+    #         project_administration = @{
+    #             access_level = 'admin'
+    #         }
+    #         document_management = @{
+    #             access_level = 'admin'
+    #         }
+    #     }
+    # }
+    # else
+    # {
+    #     $UserDict.services = @{
+    #         document_management = @{
+    #             access_level = 'user'
+    #         }
+    #     }
+    # }
 
     # admin/User
     if (
@@ -1267,32 +1306,36 @@ function Format-UserForProjectImport
         -or ($Admin)
     )
     {
-        $UserDict.services = @{
-            project_administration = @{
-                access_level = 'admin'
+        $UserDict.products = @(
+            @{
+                key = 'projectAdministration'
+                access = 'administrator'
+            },
+            @{
+                key = 'docs'
+                access = 'administrator'
             }
-            document_management = @{
-                access_level = 'admin'
-            }
-        }
+        )
     }
     else
     {
-        $UserDict.services = @{
-            document_management = @{
-                access_level = 'user'
+        $UserDict.products = @(
+            ,
+            @{
+                key = 'docs'
+                access = 'member'
             }
-        }
+        )
     }
 
     # role(s)
     if ($User.roleIds)
     {
-        $UserDict.industry_roles = [System.Collections.ArrayList]$User.roleIds
+        $UserDict.roleIds = [System.Collections.ArrayList]$User.roleIds
     }
     elseif ($User.default_role_id)
     {
-        $UserDict.industry_roles = [System.Collections.ArrayList]@($User.default_role_id)
+        $UserDict.roleIds = [System.Collections.ArrayList]@($User.default_role_id)
     }
     elseif ($User.project)
     {
@@ -1300,12 +1343,12 @@ function Format-UserForProjectImport
 
         if ($HubUser.default_role_id)
         {
-            $UserDict.industry_roles = [System.Collections.ArrayList]@($HubUser.default_role_id)
+            $UserDict.roleIds = [System.Collections.ArrayList]@($HubUser.default_role_id)
         }
     }
     else
     {
-        $UserDict['industry_roles'] = [System.Collections.ArrayList]@()
+        $UserDict['roleIds'] = [System.Collections.ArrayList]@()
     }
 
     return $UserDict
@@ -1385,19 +1428,24 @@ function Add-ProjectUsers
             Write-Verbose "DONE Adding $($User.name) ($($User.email)) to UsersList."
         }
     }
+    $UsersList = @{'users' = $UsersList}
 
     function batch ($ulist)
     {
         Write-Verbose "Running Add-ProjectUsers batch with $($ulist.count) users..."
+
         $request = @{
-            Uri = "https://developer.api.autodesk.com/hq/v2/accounts/$AccountId/projects/$ProjectId/users/import"
+            Uri = "https://developer.api.autodesk.com/construction/admin/v2/projects/$ProjectId/users:import"
             Method = "POST"
-            Headers = @{Authorization = "$($AccessToken.token_type) $($AccessToken.access_token)"}
-            Body = ConvertTo-Json $ulist -Depth 3
-            ContentType = 'application/json'
+            Headers = @{
+                "Content-Type" = "application/json"
+                "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"
+            }
+            Body = ConvertTo-Json $ulist -Depth 8
         }
 
         $response = Invoke-RestMethod @request
+
         $request.Body = $ulist
 
         $null = $Global:RequestResponseHistory.Add(@{
@@ -1409,6 +1457,7 @@ function Add-ProjectUsers
         Write-Verbose "DONE Running Add-ProjectUsers batch with $($ulist.count) users."
         return $response
     }
+
 
     $responses = [System.Collections.ArrayList]@()
 
@@ -1480,13 +1529,59 @@ function Add-ProjectUser
         $ThreeLegged
     )
     # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $Hub = ConvertTo-Hub -Hub:$Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
     $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
-    $response = Add-ProjectUsers -Hub $Hub -Project $Project -Users @(,$User) -Admin:$Admin `
-        -Force:$Force -ThreeLegged:$ThreeLegged
+    $response = Add-ProjectUsers -Hub $Hub -Project $Project -Users @(,$User) -Admin:$Admin -Force:$Force -ThreeLegged:$ThreeLegged
 
     return $response
+}
+
+function Add-UserToAllProjects
+{
+    <#
+        .SYNOPSIS
+
+        .LINK
+
+    #>
+
+    [CmdletBinding()]
+
+    param
+    (
+        [Parameter()]
+        [ArgumentCompleter({ HubNameCompleter @args })]
+        $Hub,
+
+        [Parameter(Mandatory)]
+        [ArgumentCompleter({ HubUserCompleter @args })]
+        $User,
+
+        # Make users project admins
+        [Parameter()]
+        [Alias('a')]
+        [Switch]
+        $Admin,
+
+        # Force reload local cache from source
+        [Parameter()]
+        [Alias('f')]
+        [Switch]
+        $Force,
+
+        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        [Parameter()]
+        [Switch]
+        $ThreeLegged
+    )
+    # coerce tab-completed args from strings to objects
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
+    
+    Get-Projects -Hub:$Hub | foreach {
+        Add-ProjectUser -Hub:$Hub -Project:$_ -User:$User -Admin:$Admin -Force:$Force -ThreeLegged:$ThreeLegged
+    }
 }

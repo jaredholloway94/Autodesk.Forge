@@ -254,18 +254,22 @@ function Get-Projects
     {
         # get $Projects from API call
         $HubId = $Hub.id
-        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub
+        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
+
         $request = @{
             Uri = "https://developer.api.autodesk.com/project/v1/hubs/$HubId/projects"
             Method = "GET"
             Headers = @{"Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"}
         }
+
         $response = Invoke-RestMethod @request
+
         $null = $Global:RequestResponseHistory.Add(@{
             function = $MyInvocation.MyCommand.Name
             request = $request
             response = $response
         })
+
         $Projects = $response.data
     }
     else

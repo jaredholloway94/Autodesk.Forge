@@ -35,18 +35,39 @@ function New-AccessToken2Legged {
         $GrantType = "client_credentials"
     )
 
-    $AccessToken2Legged = Invoke-RestMethod `
-        -Uri "https://developer.api.autodesk.com/authentication/v1/authenticate" `
-        -Method "POST" `
-        -Headers @{
+
+    # DEPRECATED: https://aps.autodesk.com/blog/migration-guide-oauth2-v1-v2
+    #
+    # $AccessToken2Legged = Invoke-RestMethod `
+    #     -Uri "https://developer.api.autodesk.com/authentication/v1/authenticate" `
+    #     -Method "POST" `
+    #     -Headers @{
+    #         "Content-Type" = "application/x-www-form-urlencoded"
+    #     } `
+    #     -Body @{
+    #         "client_id" = $ClientId
+    #         "client_secret" = $ClientSecret
+    #         "grant_type" = $GrantType
+    #         "scope" = $Scope
+    #     }
+
+    $ClientStringEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("$ClientId`:$ClientSecret"))
+    
+    $request = @{
+        Uri = "https://developer.api.autodesk.com/authentication/v2/token"
+        Method = "POST"
+        Headers = @{
             "Content-Type" = "application/x-www-form-urlencoded"
-        } `
-        -Body @{
-            "client_id" = $ClientId
-            "client_secret" = $ClientSecret
+            "Authorization" = "Basic $ClientStringEncoded"
+
+        }
+        Body = @{
             "grant_type" = $GrantType
             "scope" = $Scope
         }
+    }
+
+    $AccessToken2Legged = Invoke-RestMethod @request
 
     if ($AccessToken2Legged) {
         $null = $Global:AccessTokens.Add(
@@ -62,8 +83,18 @@ function New-AccessToken2Legged {
     return $AccessToken2Legged
 }
 
+
 function New-AuthCode3Legged {
+
+    <#
+        .SYNOPSIS
+
+        .LINK
+        https://aps.autodesk.com/en/docs/oauth/v2/tutorials/get-3-legged-token/
+    #>
+
     [CmdletBinding()]
+
     param (
         [Parameter(Mandatory)]
         [String]
@@ -79,13 +110,17 @@ function New-AuthCode3Legged {
 
         [Parameter()]
         [String]
-        $RedirectUri = "http://localhost:8360/callback"
+        $RedirectUri = "http://localhost:8360/callback",
+        
+        [Parameter()]
+        [ValidateSet("code","token")]
+        [String]
+        $ResponseType = "code"
     )
-    <#
-    Spin up minimal web server on localhost to serve callback url for Code Grant 3-Legged OAth flow.
-    #>
+
+    # Spin up minimal web server on localhost to serve callback url for Code Grant 3-Legged OAth flow
     $RedirectUriEncoded = [System.Net.WebUtility]::UrlEncode($RedirectUri)
-    $AuthUrl = "https://developer.api.autodesk.com/authentication/v1/authorize"
+    $AuthUrl = "https://developer.api.autodesk.com/authentication/v2/authorize"
     $AuthUrl += "?response_type=$ResponseType&client_id=$ClientId&redirect_uri=$RedirectUriEncoded&scope=$Scope"
 
     Start-Process $AuthUrl
@@ -109,8 +144,19 @@ function New-AuthCode3Legged {
     return $code
 }
 
+
 function New-AccessToken3Legged {
+
+    <#
+        .SYNOPSIS
+
+        .LINK
+        https://aps.autodesk.com/en/docs/oauth/v2/reference/http/gettoken-POST/#section-1-authorization-code-grant-type
+
+    #>
+
     [CmdletBinding()]
+
     param (
         [Parameter(Mandatory)]
         [String]
@@ -125,35 +171,45 @@ function New-AccessToken3Legged {
         $ClientSecret = (Get-ForgeAppCredentials)['secret'],
 
         [Parameter()]
+        [String]
+        $RedirectUri = "http://localhost:8360/callback",
+        
+        [Parameter()]
         [ValidateSet("code","token")]
         [String]
-        $ResponseType = "code",
-
-        [Parameter()]
-        [String]
-        $RedirectUri = "http://localhost:8360/callback"
+        $ResponseType = "code"
     )
-    <#
-    https://forge.autodesk.com/en/docs/oauth/v2/tutorials/get-3-legged-token/
-    #>
-    if ($ResponseType -eq "code") {
+
+    if ($ResponseType -eq "code")
+    {
         $Code = New-AuthCode3Legged -Scope $Scope -ClientId $ClientId -ClientSecret $ClientSecret -RedirectUri $RedirectUri
-        $AccessToken3Legged = Invoke-RestMethod `
-            -Uri "https://developer.api.autodesk.com/authentication/v1/gettoken" `
-            -Method "POST" `
-            -Headers @{
+
+        # https://aps.autodesk.com/blog/migration-guide-oauth2-v1-v2
+        $ClientStringEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("$ClientId`:$ClientSecret"))
+
+        $request = @{
+            Uri = "https://developer.api.autodesk.com/authentication/v2/token"
+            Method = "POST"
+            Headers = @{
                 "Content-Type" = "application/x-www-form-urlencoded"
-            } `
-            -Body @{
-                "client_id" = $ClientId
-                "client_secret" = $ClientSecret
+                "Authorization" = "Basic $ClientStringEncoded"
+            }
+            Body = @{
                 "grant_type" = "authorization_code"
                 "code" = $Code
                 "redirect_uri" = $RedirectUri
             }
+        }
+
+        $AccessToken3Legged = Invoke-RestMethod @request
+    }
+    else
+    {
+    Write-Error "Invalid ResponseType."    
     }
 
-    if ($AccessToken3Legged) {
+    if ($AccessToken3Legged)
+    {
         $null = $Global:AccessTokens.Add(
             @{
                 "legs" = 3
@@ -250,17 +306,20 @@ function Get-MyUserInfo
 
     # https://forge.autodesk.com/en/docs/oauth/v2/reference/http/users-@me-GET/
     
-    if
-    ( # (MyUserInfo has not been fetched before) or (force update requested)
-        (-not $Global:Me) -or ($Force)
-    )
-    { # get MyUserInfo
+    if ((-not $Global:Me) -or ($Force))
+    {
         $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged
-        # storing it in a Global variable for next time
-        $Global:Me = Invoke-RestMethod `
-            -Uri "https://developer.api.autodesk.com/userprofile/v1/users/@me" `
-            -Method "GET" `
-            -Headers @{"Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"}
+
+        $request =@{
+            Uri = "https://developer.api.autodesk.com/userprofile/v1/users/@me"
+            Method = "GET"
+            Headers = @{
+                "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"
+            }
+        }
+
+        $Global:Me = Invoke-RestMethod @request
+           
     }
 
     return $Global:Me
