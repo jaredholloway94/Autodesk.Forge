@@ -424,7 +424,7 @@ function Get-ProjectFromAPI
     $Project = ConvertTo-
     $ProjectId = $ProjectId | ConvertFrom-B360Id
 
-    $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub
+    $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
     $request = @{
         Uri = "https://developer.api.autodesk.com/project/v1/hubs/$HubId/projects/$ProjectId"
         Method = "GET"
@@ -531,7 +531,7 @@ function Get-RootFolders
     { 
         $HubId = $Hub.id
         $ProjectId = $Project.id
-        $AccessToken = Get-AccessToken -Scope "data:read" -Force:$Force -ThreeLegged:$ThreeLegged -Hub $Hub -Project $Project
+        $AccessToken = Get-AccessToken -Scope "data:read" -Force:$Force -ThreeLegged:$ThreeLegged
 
         $request = @{
             Uri = "https://developer.api.autodesk.com/project/v1/hubs/$HubId/projects/$ProjectId/topFolders?projectFilesOnly=true"
@@ -667,7 +667,7 @@ function Get-Contents
     
     if ((-not $Folder.contents) -or ($Force))
     {
-        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub -Project $Project
+        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
         $ProjectId = $Folder.project.id
         $FolderId = $Folder.id
 
@@ -935,7 +935,7 @@ function Get-ItemDetails
 	# only retrieve from API if there is no cached value or $Force arg is applied
     if ((-not $Item.details) -or ($Force))
     {
-        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -Hub $Hub -Project $Project
+        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
         $ProjectId = $Item.project.id
 		$ItemId = $Item.id
 
