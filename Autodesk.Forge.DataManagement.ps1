@@ -412,7 +412,13 @@ function Get-ProjectFromAPI
         $Hub,
 
         [Parameter(Mandatory)]
+        [ArgumentCompleter({ ProjectNameCompleter @args })]
         $Project,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
 
         # Use 3-Legged OAuth flow, instead of default 2-Legged flow
         [Switch]
@@ -421,8 +427,9 @@ function Get-ProjectFromAPI
     # coerce $Hub to [Hub] from (tab-completed) [String]
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $HubId = $Hub.id | ConvertFrom-B360Id
-    $Project = ConvertTo-
-    $ProjectId = $ProjectId | ConvertFrom-B360Id
+    # coerce $Project to [Project] from (tab-completed) [String]
+    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $ProjectId = $Project.id | ConvertFrom-B360Id
 
     $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
     $request = @{
