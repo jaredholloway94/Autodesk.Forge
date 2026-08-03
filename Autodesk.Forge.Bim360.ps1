@@ -391,6 +391,11 @@ function Get-B360ProjectFromAPI
         [Parameter(Mandatory)]
         $ProjectId,
 
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
         # Use 3-Legged OAuth flow, instead of default 2-Legged flow
         [Switch]
         $ThreeLegged
