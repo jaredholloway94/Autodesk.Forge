@@ -304,14 +304,16 @@ function Get-MyUserInfo
         $Force
     )
 
-    # https://forge.autodesk.com/en/docs/oauth/v2/reference/http/users-@me-GET/
-    
+    # OIDC-compliant UserInfo endpoint (User Profile API).
+    # Replaces the deprecated GET userprofile/v1/users/@me.
+    # https://aps.autodesk.com/en/docs/profile/v2/reference/oidc/userinfo-GET/
+
     if ((-not $Global:Me) -or ($Force))
     {
-        $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged
+        $AccessToken = Get-AccessToken -Scope "openid profile" -ThreeLegged
 
         $request =@{
-            Uri = "https://developer.api.autodesk.com/userprofile/v1/users/@me"
+            Uri = "https://api.userprofile.autodesk.com/userinfo"
             Method = "GET"
             Headers = @{
                 "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"
