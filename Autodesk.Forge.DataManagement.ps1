@@ -766,13 +766,15 @@ function FileNameCompleter
     
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
     if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.IncludeHidden) {$IncludeHidden = $true} else {$IncludeHidden = $false}
 
-    if (-not $args.Folder)
+    if (-not $FakeBoundParameters.Folder)
     {
         '<#  !!! Provide $Folder parameter value first !!!  #>'
     }
     else
     {
+        $Folder = $FakeBoundParameters.Folder
         $FileNames = Get-Files $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged |
         foreach {$_.attributes.displayName}
 
