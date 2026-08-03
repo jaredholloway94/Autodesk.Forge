@@ -475,7 +475,7 @@ function Add-ProjectAdmin
         name = $User.name
         nickname = $User.nickname
         first_name = $User.first_name
-        last_name = $User.lastName
+        last_name = $User.last_name
         uid = $User.uid
         image_url = $User.image_url
         address_line_1 = $User.address_line_1
