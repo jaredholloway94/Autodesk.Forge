@@ -787,8 +787,11 @@ function Resolve-ACCProjectUserId
         [Switch]
         $Force,
 
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # already an object with an id
