@@ -45,9 +45,11 @@ function Get-SubmittalItems
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -140,7 +142,15 @@ function SubmittalItemCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -215,9 +225,11 @@ function ConvertTo-SubmittalItem
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     if ($null -eq $Item)
@@ -278,9 +290,11 @@ function Get-SubmittalItem
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -324,9 +338,11 @@ function Get-SubmittalItemFromAPI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -425,9 +441,11 @@ function New-SubmittalItem
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -528,9 +546,11 @@ function Set-SubmittalItem
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -625,9 +645,11 @@ function Set-SubmittalItemState
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -703,9 +725,11 @@ function Get-SubmittalItemRevisions
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -766,9 +790,11 @@ function Get-SubmittalItemSteps
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -829,9 +855,11 @@ function Get-SubmittalItemAttachments
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -888,9 +916,11 @@ function Get-SubmittalNextCustomIdentifier
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -947,9 +977,11 @@ function Get-SubmittalSpecs
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1034,7 +1066,15 @@ function SubmittalSpecCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -1102,9 +1142,11 @@ function New-SubmittalSpec
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1173,9 +1215,11 @@ function Get-SubmittalItemTypes
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1260,7 +1304,15 @@ function SubmittalItemTypeCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -1329,9 +1381,11 @@ function Get-SubmittalItemType
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1388,9 +1442,11 @@ function Get-SubmittalPackages
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1475,7 +1531,15 @@ function SubmittalPackageCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -1541,9 +1605,11 @@ function Get-SubmittalPackage
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1600,9 +1666,11 @@ function Get-SubmittalResponses
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1660,9 +1728,11 @@ function Get-SubmittalResponse
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1719,9 +1789,11 @@ function Get-SubmittalMetadata
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1776,9 +1848,11 @@ function Get-SubmittalTemplates
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1833,9 +1907,11 @@ function Get-SubmittalSettingsMappings
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1902,9 +1978,11 @@ function New-SubmittalSettingsMapping
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1972,9 +2050,11 @@ function Remove-SubmittalSettingsMapping
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -2031,9 +2111,11 @@ function Get-MySubmittalPermissions
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
