@@ -811,6 +811,7 @@ function FileNameCompleter
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
     if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
     if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+    if ($FakeBoundParameters.IncludeHidden) {$IncludeHidden = $true} else {$IncludeHidden = $false}
 
     # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
     if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
@@ -818,12 +819,13 @@ function FileNameCompleter
         return '<#  Not signed in -- run Connect-Forge first  #>'
     }
 
-    if (-not $args.Folder)
+    if (-not $FakeBoundParameters.Folder)
     {
         '<#  !!! Provide $Folder parameter value first !!!  #>'
     }
     else
     {
+        $Folder = $FakeBoundParameters.Folder
         $FileNames = Get-Files $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged |
         foreach {$_.attributes.displayName}
 
