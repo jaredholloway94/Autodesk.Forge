@@ -30,9 +30,11 @@ function Get-Hubs
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     if ( (-not $Global:Hubs) -or ($Force) )
@@ -125,7 +127,15 @@ function HubNameCompleter
     )
 
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     $HubNames = Get-Hubs -Force:$Force -ThreeLegged:$ThreeLegged | foreach {$_.attributes.name}
 
@@ -161,9 +171,11 @@ function Get-Hub
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $Hub = Get-Hubs -Force:$Force -ThreeLegged:$ThreeLegged |
@@ -194,9 +206,11 @@ function ConvertTo-Hub
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     if ($null -eq $Hub)
@@ -242,9 +256,11 @@ function Get-Projects
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce $Hub to [Hub] from (tab-completed) [string]
@@ -327,8 +343,15 @@ function ProjectNameCompleter
     )
 
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
     
+    # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
+
     if ($FakeBoundParameters.Hub)
     {
         $Hub = ConvertTo-Hub $FakeBoundParameters.Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -379,9 +402,11 @@ function Get-Project
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     # coerce $Hub to [Hub] from (tab-completed) [String]
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -414,9 +439,11 @@ function Get-ProjectFromAPI
         [Parameter(Mandatory)]
         $Project,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     # coerce $Hub to [Hub] from (tab-completed) [String]
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -470,9 +497,11 @@ function ConvertTo-Project
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     if ($null -eq $Project)
@@ -519,9 +548,11 @@ function Get-RootFolders
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -593,9 +624,11 @@ function Get-ProjectFiles
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -660,9 +693,11 @@ function Get-Contents
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     if ((-not $Folder.contents) -or ($Force))
@@ -726,9 +761,11 @@ function Get-Files
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     $Files = Get-Contents $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged |
@@ -765,8 +802,15 @@ function FileNameCompleter
     )
     
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
     if ($FakeBoundParameters.IncludeHidden) {$IncludeHidden = $true} else {$IncludeHidden = $false}
+
+    # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Folder)
     {
@@ -820,9 +864,11 @@ function Get-File
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
 
 
     )
@@ -858,9 +904,11 @@ function Get-Folders
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $Folders = Get-Contents $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged |
@@ -894,9 +942,11 @@ function Get-FullPath
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
 	)
 	
 	$FullPath = "/"+$Item.attributes.displayName
@@ -929,9 +979,11 @@ function Get-ItemDetails
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
 	# only retrieve from API if there is no cached value or $Force arg is applied
@@ -1011,9 +1063,11 @@ function Search-Folder
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # init search results collector array
@@ -1098,9 +1152,11 @@ function Search-ProjectFiles
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged,
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
 
         [Parameter(ValueFromPipeline)]
         $ProjectFiles
@@ -1190,9 +1246,11 @@ function Get-ProjectRevitModels
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
 	)
 	
 	# Get all .rvt files from BIM360 Project Files
@@ -1238,9 +1296,11 @@ function Export-RevitModelInfo
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
 	)
 	
 	$Hub = ConvertTo-Hub $Hub
