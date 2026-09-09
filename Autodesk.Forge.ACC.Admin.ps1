@@ -19,7 +19,148 @@
 # hub id without the "b." prefix. Use ConvertTo-B360Id. These endpoints use account:read / account:write scopes.
 
 
+# ACC Admin API - Auth helpers ___________________________________________________________________________________
+
+function New-ACCAuthHeaders
+{
+    <#
+        .SYNOPSIS
+        Build the request headers for an ACC Admin call.
+
+        .DESCRIPTION
+        The ACC Admin endpoints accept a 3-legged (user) token, or a 2-legged token *with user
+        impersonation* -- a pure 2-legged token is rejected. So when -TwoLegged is used, an
+        -OnBehalfOf Autodesk id is required and is sent as the x-user-id header.
+    #>
+
+    [CmdletBinding()]
+
+    param
+    (
+        [Parameter(Mandatory,Position=0)]
+        $AccessToken,
+
+        [Switch]
+        $TwoLegged,
+
+        [Parameter()]
+        $OnBehalfOf
+    )
+
+    if ($TwoLegged -and (-not $OnBehalfOf))
+    {
+        throw "ACC Admin endpoints do not accept a pure 2-legged token. Pass -OnBehalfOf <autodeskId> together with -TwoLegged, or use the default 3-legged flow (Connect-Forge)."
+    }
+
+    $Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+
+    if ($OnBehalfOf)
+    {
+        $Headers['x-user-id'] = $OnBehalfOf
+    }
+
+    return $Headers
+}
+
+
 # ACC Admin API - Projects _______________________________________________________________________________________
+
+function Get-MyACCProjects
+{
+    <#
+        .SYNOPSIS
+        Get the projects the signed-in Autodesk user is a member of. This asks the API directly
+        for the caller's projects, rather than listing the whole account and filtering.
+
+        .LINK
+        https://aps.autodesk.com/en/docs/acc/v1/reference/http/admin-usersuseridprojects-GET/
+    #>
+
+    [CmdletBinding()]
+
+    param
+    (
+        [Parameter(Mandatory,ValueFromPipeline)]
+        [ArgumentCompleter({ HubNameCompleter @args })]
+        $Hub,
+
+        # Autodesk id of the user. Defaults to the signed-in user (from Get-MyUserInfo).
+        [Parameter()]
+        $UserId,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
+        [Switch]
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
+    )
+
+    # coerce tab-completed args from strings to objects
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+
+    if (-not $UserId)
+    {
+        # OIDC userinfo returns the Autodesk id as 'sub'; older shapes used 'userId'
+        $Me = Get-MyUserInfo -Force:$Force
+        if ($Me.sub) {$UserId = $Me.sub} elseif ($Me.userId) {$UserId = $Me.userId}
+
+        if (-not $UserId)
+        {
+            throw "Could not determine the signed-in user's Autodesk id. Run Connect-Forge, or pass -UserId explicitly."
+        }
+    }
+
+    $Projects = [System.Collections.ArrayList]@()
+    $AccountId = $Hub.id | ConvertTo-B360Id
+    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
+
+    function batch ($offset)
+    {
+        $request = @{
+            Uri = "https://developer.api.autodesk.com/construction/admin/v1/accounts/$AccountId/users/$UserId/projects?limit=100&offset=$offset"
+            Method = "GET"
+            Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
+        }
+        $response = Invoke-RestMethod @request
+        # cache request,response pair for debugging
+        $null = $Global:RequestResponseHistory.Add(@{
+            function = $MyInvocation.MyCommand.Name
+            request = $request
+            response = $response
+        })
+
+        $response.results | foreach { $null = $Projects.Add($_) }
+
+        if ( ($response.results.Count -gt 0) -and ($Projects.Count -lt $response.pagination.totalResults) )
+        {
+            batch ($offset + 100)
+        }
+    }
+
+    batch 0
+
+    $Projects | foreach {
+        $null = Add-Member -InputObject $_ -NotePropertyName 'hub' -NotePropertyValue $Hub -Force
+    }
+
+    return $Projects
+}
+
 
 function Get-ACCProjects
 {
@@ -49,7 +190,17 @@ function Get-ACCProjects
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -59,7 +210,7 @@ function Get-ACCProjects
     {
         $Projects = [System.Collections.ArrayList]@()
         $AccountId = $Hub.id | ConvertTo-B360Id
-        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
         # ACC Admin API can only retrieve a limited number of projects at a time. Batch to get all at once.
         function batch ($offset)
@@ -67,7 +218,7 @@ function Get-ACCProjects
             $request = @{
                 Uri = "https://developer.api.autodesk.com/construction/admin/v1/accounts/$AccountId/projects?limit=100&offset=$offset"
                 Method = "GET"
-                Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+                Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
             }
             $response = Invoke-RestMethod @request
             # cache request,response pair for debugging
@@ -127,9 +278,14 @@ function Get-ACCProjectFromAPI
         [ArgumentCompleter({ HubNameCompleter @args })]
         $Hub,
 
-        [Parameter(Mandatory,ValueFromPipeline)]
+        [Parameter(ValueFromPipeline)]
         [ArgumentCompleter({ ProjectNameCompleter @args })]
         $Project,
+
+        # Address the project by its raw id instead of coercing a -Project name/object.
+        # Takes precedence over -Project.
+        [Parameter()]
+        $ProjectId,
 
         # Force reload local cache from source
         [Alias('f')]
@@ -140,21 +296,43 @@ function Get-ACCProjectFromAPI
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
-    $Hub = $Project.hub
 
-    $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+    if ($ProjectId)
+    {
+        $ProjectId = ConvertTo-B360Id $ProjectId
+    }
+    elseif ($Project)
+    {
+        $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
+        $Hub = $Project.hub
+        $ProjectId = ConvertTo-B360Id $Project.id
+    }
+    else
+    {
+        throw "Provide either -Project or -ProjectId."
+    }
+
+    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId"
         Method = "GET"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
     }
     $response = Invoke-RestMethod @request
     # cache request,response pair for debugging
@@ -267,13 +445,23 @@ function New-ACCProject
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $AccountId = $Hub.id | ConvertTo-B360Id
-    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     $Body = @{
         name = $ProjectName
@@ -306,7 +494,7 @@ function New-ACCProject
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/accounts/$AccountId/projects"
         Method = "POST"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
         Body = ConvertTo-Json $Body -Depth 8
         ContentType = 'application/json'
     }
@@ -385,7 +573,17 @@ function Set-ACCProject
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -394,7 +592,7 @@ function Set-ACCProject
     $Hub = $Project.hub
 
     $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     # only send fields the caller provided
     $Body = @{}
@@ -410,7 +608,7 @@ function Set-ACCProject
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId"
         Method = "PATCH"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
         Body = ConvertTo-Json $Body -Depth 8
         ContentType = 'application/json'
     }
@@ -477,7 +675,17 @@ function Add-ACCProjectUser
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -487,7 +695,7 @@ function Add-ACCProjectUser
     $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     if (-not $Products)
     {
@@ -512,7 +720,7 @@ function Add-ACCProjectUser
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId/users"
         Method = "POST"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
         Body = ConvertTo-Json $Body -Depth 8
         ContentType = 'application/json'
     }
@@ -566,7 +774,17 @@ function Get-ACCProjectUser
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -577,12 +795,12 @@ function Get-ACCProjectUser
     $UserId = Resolve-ACCProjectUserId -Hub $Hub -Project $Project -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId/users/$UserId"
         Method = "GET"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
     }
     $response = Invoke-RestMethod @request
     # cache request,response pair for debugging
@@ -643,7 +861,17 @@ function Set-ACCProjectUser
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -654,7 +882,7 @@ function Set-ACCProjectUser
     $UserId = Resolve-ACCProjectUserId -Hub $Hub -Project $Project -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     if (-not $Products)
     {
@@ -676,7 +904,7 @@ function Set-ACCProjectUser
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId/users/$UserId"
         Method = "PATCH"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
         Body = ConvertTo-Json $Body -Depth 8
         ContentType = 'application/json'
     }
@@ -729,7 +957,17 @@ function Remove-ACCProjectUser
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -740,12 +978,12 @@ function Remove-ACCProjectUser
     $UserId = Resolve-ACCProjectUserId -Hub $Hub -Project $Project -User $User -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId/users/$UserId"
         Method = "DELETE"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
     }
     $response = Invoke-RestMethod @request
     # cache request,response pair for debugging
@@ -846,7 +1084,17 @@ function Get-ACCCompanies
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -856,14 +1104,14 @@ function Get-ACCCompanies
     {
         $Companies = [System.Collections.ArrayList]@()
         $AccountId = $Hub.id | ConvertTo-B360Id
-        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
         function batch ($offset)
         {
             $request = @{
                 Uri = "https://developer.api.autodesk.com/construction/admin/v1/accounts/$AccountId/companies?limit=100&offset=$offset"
                 Method = "GET"
-                Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+                Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
             }
             $response = Invoke-RestMethod @request
             # cache request,response pair for debugging
@@ -994,18 +1242,28 @@ function Get-ACCCompany
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $AccountId = $Hub.id | ConvertTo-B360Id
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     $request = @{
         Uri = "https://developer.api.autodesk.com/construction/admin/v1/accounts/$AccountId/companies/$CompanyId"
         Method = "GET"
-        Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+        Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
     }
     $response = Invoke-RestMethod @request
     # cache request,response pair for debugging
@@ -1050,7 +1308,17 @@ function Get-ACCProjectCompanies
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        # Required with -TwoLegged; optional otherwise.
+        [Parameter()]
+        $OnBehalfOf
     )
 
     # coerce tab-completed args from strings to objects
@@ -1060,14 +1328,14 @@ function Get-ACCProjectCompanies
 
     $Companies = [System.Collections.ArrayList]@()
     $ProjectId = ConvertTo-B360Id $Project.id
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged
 
     function batch ($offset)
     {
         $request = @{
             Uri = "https://developer.api.autodesk.com/construction/admin/v1/projects/$ProjectId/companies?limit=100&offset=$offset"
             Method = "GET"
-            Headers = @{ "Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)" }
+            Headers = New-ACCAuthHeaders $AccessToken -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
         }
         $response = Invoke-RestMethod @request
         # cache request,response pair for debugging
@@ -1126,7 +1394,9 @@ function Get-ACCBusinessUnits
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $AccountId = $Hub.id | ConvertTo-B360Id
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+    $AccessToken = # NOTE: this is an hq/v1 endpoint, which only accepts 2-legged tokens
+    # (BIM 360 account-admin; see Autodesk request HQ-5133). -ThreeLegged is ignored here.
+    Get-AccessToken -Scope "account:read" -TwoLegged
 
     $request = @{
         Uri = "https://developer.api.autodesk.com/hq/v1/accounts/$AccountId/business_units_structure"
@@ -1182,7 +1452,9 @@ function Get-ACCAccountUserByEmail
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $AccountId = $Hub.id | ConvertTo-B360Id
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+    $AccessToken = # NOTE: this is an hq/v1 endpoint, which only accepts 2-legged tokens
+    # (BIM 360 account-admin; see Autodesk request HQ-5133). -ThreeLegged is ignored here.
+    Get-AccessToken -Scope "account:read" -TwoLegged
 
     $EmailEncoded = [System.Net.WebUtility]::UrlEncode($Email)
 

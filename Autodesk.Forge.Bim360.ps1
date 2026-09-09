@@ -11,6 +11,36 @@
 . (Join-Path $PSScriptRoot "Autodesk.Forge.DataManagement.ps1")
 
 
+# Deprecation notices ____________________________________________________________________________________________
+
+$Global:ForgeDeprecationWarned = @{}
+
+function Write-ForgeDeprecationWarning
+{
+    <#
+        .SYNOPSIS
+        Warn once per session that a cmdlet is deprecated and what supersedes it.
+    #>
+
+    param
+    (
+        [Parameter(Mandatory,Position=0)]
+        [String]
+        $Old,
+
+        [Parameter(Mandatory,Position=1)]
+        [String]
+        $New
+    )
+
+    if (-not $Global:ForgeDeprecationWarned.ContainsKey($Old))
+    {
+        Write-Warning "$Old is deprecated and now forwards to $New. It used a BIM 360 hq/v1 endpoint, which only accepts 2-legged (app) tokens and so could not respect the signed-in user's access."
+        $Global:ForgeDeprecationWarned[$Old] = $true
+    }
+}
+
+
 # BIM 360 API - Companies ________________________________________________________________________________________
 
 
@@ -52,7 +82,9 @@ function Get-HubUsers
     {
         $HubUsers = [System.Collections.ArrayList]@()
         $AccountId = $Hub.id | ConvertTo-B360Id
-        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+        $AccessToken = # NOTE: hq/v1|v2 account-admin endpoints only accept 2-legged tokens
+        # (see Autodesk request HQ-5133), so -ThreeLegged is ignored here.
+        Get-AccessToken -Scope "account:read" -TwoLegged
 
         # BIM 360 API can only retrieve 100 HubUsers at a time. Use this batch function to get all HubUsers at once.
         function Get-HubUsers_batch ($i)
@@ -267,10 +299,18 @@ function Get-HubUser
 function Get-B360Projects
 {
     <#
-    .LINK
-    https://forge.autodesk.com/en/docs/bim360/v1/reference/http/projects-GET/
+    .SYNOPSIS
+    DEPRECATED -- superseded by Get-ACCProjects.
+
+    .DESCRIPTION
+    The BIM 360 hq/v1 projects endpoint only accepts 2-legged (app) tokens, so it always returned
+    every project in the account regardless of who was signed in. This now forwards to
+    Get-ACCProjects (construction/admin/v1), which accepts 3-legged tokens and therefore respects
+    the signed-in user's access.
+
+    Note: the returned objects use the ACC Admin shape (camelCase) rather than the old hq/v1 shape.
     #>
-    
+
     [CmdletBinding()]
 
     param
@@ -288,63 +328,21 @@ function Get-B360Projects
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        [Parameter()]
+        $OnBehalfOf
     )
 
-    # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+    Write-ForgeDeprecationWarning 'Get-B360Projects' 'Get-ACCProjects'
 
-    if ((-not $Hub.b360projects) -or ($Force))
-    {
-        $B360Projects = [System.Collections.ArrayList]@()
-        $AccountId = $Hub.id | ConvertTo-B360Id
-        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
-        
-        function batch ($i)
-        {
-            # BIM 360 API can only retrieve 100 Projects at a time. Use this to get all Projects in a Hub.
-            $request = @{
-                Uri = "https://developer.api.autodesk.com/hq/v1/accounts/$AccountId/projects?limit=100&offset=$i"
-                Method = "GET"
-                Headers = @{ Authorization = "$($AccessToken.token_type) $($AccessToken.access_token)" }
-            }
-            $response = Invoke-RestMethod @request
-            $null = $Global:RequestResponseHistory.Add(@{
-                function = $MyInvocation.MyCommand.Name
-                request = $request
-                response = $response
-            })
-
-            if ($response.Count -ne 0)
-            {
-                $response | foreach {$null = $B360Projects.Add($_)}
-                $i += 100
-                batch $i
-            }
-        }
-        batch 0
-    }
-    else
-    {
-        $B360Projects = $Hub.b360projects
-    }
-
-    if ($B360Projects)
-    {
-        $B360Projects | foreach {
-            $null = Add-Member -InputObject $_ -NotePropertyName 'hub' -NotePropertyValue $Hub -Force
-        }
-
-        $Hub | foreach {
-            $null = Add-Member -InputObject $_ -NotePropertyName 'b360projects' -NotePropertyValue $B360Projects -Force
-        }
-
-        return $B360Projects
-    }
-    else
-    {
-        throw "B360Projects not found."
-    }
+    return Get-ACCProjects -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
 }
 
 
@@ -394,11 +392,12 @@ function Get-B360Project
 function Get-B360ProjectFromAPI
 {
     <#
-        .SYNOPSIS
-        Get one B360Project by exact id.
+    .SYNOPSIS
+    DEPRECATED -- superseded by Get-ACCProjectFromAPI.
 
-        .LINK
-        https://forge.autodesk.com/en/docs/bim360/v1/reference/http/projects-:project_id-GET/  
+    .DESCRIPTION
+    Forwards to the construction/admin/v1 project endpoint, which (unlike hq/v1) accepts 3-legged
+    tokens and so respects the signed-in user's access.
     #>
 
     [CmdletBinding()]
@@ -421,29 +420,22 @@ function Get-B360ProjectFromAPI
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        [Parameter()]
+        $OnBehalfOf
     )
-    # coerce $Hub to [Hub] from (tab-completed) [String]
-    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $AccountId = $Hub.id | ConvertTo-B360Id
 
-    $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
-    $request = @{
-        Uri = "https://developer.api.autodesk.com/hq/v1/accounts/$AccountId/projects/$ProjectId"
-        Method = "GET"
-        Headers = @{"Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"}
-    }
-    $response = Invoke-RestMethod @request
-    # cache request,response pair for debugging
-    $null = $Global:RequestResponseHistory.Add(@{
-        function = $MyInvocation.MyCommand.Name
-        request = $request
-        response = $response
-    })
+    Write-ForgeDeprecationWarning 'Get-B360ProjectFromAPI' 'Get-ACCProjectFromAPI'
 
-    $B360Project = $response
-
-    return $B360Project
+    return Get-ACCProjectFromAPI -Hub $Hub -ProjectId $ProjectId -Force:$Force `
+        -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
 }
 
 
@@ -451,12 +443,18 @@ function Get-B360ProjectFromAPI
 function Add-ProjectAdmin
 {
     <#
-    .LINK
-    https://forge.autodesk.com/en/docs/bim360/v1/reference/http/projects-project_id-users-POST/
+    .SYNOPSIS
+    DEPRECATED -- superseded by Add-ACCProjectUser -Admin.
+
+    .DESCRIPTION
+    Forwards to the construction/admin/v1 project-users endpoint. The hq/v1 -ServiceType concept
+    (doc_manager, collab, ...) does not exist in ACC Admin, which grants access per product
+    instead; -ServiceType is accepted for compatibility but ignored. Use Add-ACCProjectUser
+    -Products for fine-grained product access.
     #>
 
     [CmdletBinding()]
-    
+
     param
     (
         [Parameter()]
@@ -471,7 +469,8 @@ function Add-ProjectAdmin
         [ArgumentCompleter({ ProjectNameCompleter @args })]
         $Project,
 
-        [Parameter(Mandatory)]
+        # Ignored. Retained so existing scripts keep parsing; ACC grants access per product.
+        [Parameter()]
         [ArgumentCompleter({ AdminServiceTypeCompleter @args })]
         $ServiceType,
 
@@ -484,71 +483,45 @@ function Add-ProjectAdmin
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        [Parameter()]
+        $OnBehalfOf
     )
 
-    # coerce tab-completed args from strings to objects
-    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $User = ConvertTo-User -Hub $Hub -User $User -Force:$Force -ThreeLegged:$ThreeLegged
-    $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
-    $Hub = $Project.hub
+    Write-ForgeDeprecationWarning 'Add-ProjectAdmin' 'Add-ACCProjectUser -Admin'
 
-    $AccountId = $Hub.id | ConvertTo-B360Id
-    $ProjectId = $Project.id | ConvertTo-B360Id
-    $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
-    $Body = @{
-        role = 'project_admin'
-        service_type = $ServiceType
-        company_id = $User.company_id
-        company_name = $User.company_name
-        email = $User.email
-        name = $User.name
-        nickname = $User.nickname
-        first_name = $User.first_name
-        last_name = $User.last_name
-        uid = $User.uid
-        image_url = $User.image_url
-        address_line_1 = $User.address_line_1
-        address_line_2 = $User.address_line_2
-        city = $User.city
-        state_or_province = $User.state_or_province
-        postal_code = $User.postal_code
-        country = $User.country
-        phone = $User.phone
-        company = $User.company
-        job_title = $User.job_title
-        industry = $User.industry
-        about_me = $User.about_me
+    if ($ServiceType)
+    {
+        Write-Warning "Add-ProjectAdmin: -ServiceType ('$ServiceType') is ignored; ACC Admin grants access per product. Use Add-ACCProjectUser -Products for fine-grained control."
     }
 
-    $request = @{
-        Uri = "https://developer.api.autodesk.com/hq/v1/accounts/$AccountId/projects/$ProjectId/users"
-        Method = "POST"
-        Headers = @{Authorization = "$($AccessToken.token_type) $($AccessToken.access_token)"}
-        Body = ConvertTo-Json $Body
-        ContentType = 'application/json'
-    }
-    $response = Invoke-RestMethod @request
-    # reformat request.Body as PSObject before caching request,response pair
-    $request.Body = $Body
-    # cache request,response pair for debugging
-    $null = $Global:RequestResponseHistory.Add(@{
-        function = $MyInvocation.MyCommand.Name
-        request = $request
-        response = $response
-    })
-
-    $ProjectAdmin = $response
-
-    return $ProjectAdmin
+    return Add-ACCProjectUser -Hub $Hub -Project $Project -User $User -Admin -Force:$Force `
+        -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
 }
 
 
 function New-B360Project
 {
     <#
-    .LINK
-    https://forge.autodesk.com/en/docs/bim360/v1/reference/http/projects-POST/
+    .SYNOPSIS
+    DEPRECATED -- superseded by New-ACCProject.
+
+    .DESCRIPTION
+    Forwards to the construction/admin/v1 project-creation endpoint, which (unlike hq/v1) accepts
+    3-legged tokens. After the project is created, the -Admin user is granted project
+    administration via Add-ACCProjectUser -Admin.
+
+    Several hq/v1-only parameters have no ACC Admin equivalent and are ignored with a warning:
+    -ServiceTypes, -AdminServiceTypes, -ContractType, -Language, -BusinessUnitId,
+    -IncludeLocations, -IncludeCompanies. ACC's nearest analogue to -ContractType is exposed
+    directly by New-ACCProject as -DeliveryMethod.
     #>
 
     [CmdletBinding()]
@@ -592,27 +565,6 @@ function New-B360Project
         $Currency,
 
         [Parameter()]
-        [ArgumentCompleter({ ServiceTypeCompleter @args })]
-        [ValidateScript({ ServiceTypeValidator })]
-        $ServiceTypes = 'doc_manager',
-
-        # services to init (using ProjectAdmin) after project is init'd
-        [Parameter()]
-        [ArgumentCompleter({ AdminServiceTypeCompleter @args })]
-        [ValidateScript({ AdminServiceTypeValidator })]
-        $AdminServiceTypes = 'doc_manager,collab',
-
-        [Parameter()]
-        [ArgumentCompleter({ ContractTypeCompleter @args })]
-        [ValidateScript({ ContractTypeValidator })]
-        $ContractType,
-
-        [Parameter()]
-        [ArgumentCompleter({ ConstructionTypeCompleter @args })]
-        [ValidateScript({ ConstructionTypeValidator })]
-        $ConstructionType,
-
-        [Parameter()]
         $JobNumber,
 
         [Parameter()]
@@ -635,7 +587,6 @@ function New-B360Project
 
         [Parameter()]
         [ArgumentCompleter({ StateCompleter @args })]
-        [ValidateScript({ StateValidator })]
         $StateOrProvince,
 
         [Parameter()]
@@ -644,15 +595,28 @@ function New-B360Project
         $Timezone,
 
         [Parameter()]
-        [ArgumentCompleter({ LanguageCompleter @args })]
-        [ValidateScript({ LanguageValidator })]
-        $Language,
-        
-        [Parameter()]
-        $BusinessUnitId,
+        [ArgumentCompleter({ ConstructionTypeCompleter @args })]
+        [ValidateScript({ ConstructionTypeValidator })]
+        $ConstructionType,
 
         [Parameter()]
         $TemplateProjectId,
+
+        # --- accepted for compatibility, ignored (no ACC Admin equivalent) ---
+        [Parameter()]
+        $ServiceTypes,
+
+        [Parameter()]
+        $AdminServiceTypes,
+
+        [Parameter()]
+        $ContractType,
+
+        [Parameter()]
+        $Language,
+
+        [Parameter()]
+        $BusinessUnitId,
 
         [Switch]
         $IncludeLocations,
@@ -660,7 +624,7 @@ function New-B360Project
         [Switch]
         $IncludeCompanies,
 
-        # Force update local cache from source
+        # Force reload local cache from source
         [Alias('f')]
         [Switch]
         $Force,
@@ -669,68 +633,72 @@ function New-B360Project
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault,
+
+        # Force the app-level (2-Legged) flow. ACC Admin endpoints reject a *pure* 2-legged
+        # token, so -OnBehalfOf must be supplied alongside this.
+        [Switch]
+        $TwoLegged,
+
+        # Autodesk id of the user to act on behalf of (sent as the x-user-id header).
+        [Parameter()]
+        $OnBehalfOf
     )
 
-    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
-    $AccountId = $Hub.id | ConvertTo-B360Id
+    Write-ForgeDeprecationWarning 'New-B360Project' 'New-ACCProject'
 
-    $Body = @{
-        name = $ProjectName
-        start_date = $StartDate
-        end_date = $EndDate
-        project_type = $ProjectType
-        value = $MoneyValue
-        currency = $Currency
+    # tell the caller plainly about anything the ACC Admin API cannot express
+    $Ignored = @()
+    foreach ($n in 'ServiceTypes','AdminServiceTypes','ContractType','Language','BusinessUnitId','IncludeLocations','IncludeCompanies')
+    {
+        if ($PSBoundParameters.ContainsKey($n)) {$Ignored += "-$n"}
+    }
+    if ($Ignored.Count -gt 0)
+    {
+        Write-Warning "New-B360Project: $($Ignored -join ', ') have no ACC Admin equivalent and were ignored. (ACC's nearest analogue to -ContractType is New-ACCProject -DeliveryMethod.)"
+    }
+
+    # coerce tab-completed args from strings to objects
+    $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
+
+    $acc_args = @{
+        Hub = $Hub
+        ProjectName = $ProjectName
+        ProjectType = $ProjectType
+        StartDate = $StartDate
+        EndDate = $EndDate
+        MoneyValue = $MoneyValue
+        Currency = $Currency
+        Force = $Force
+        ThreeLegged = $ThreeLegged
+        TwoLegged = $TwoLegged
     }
 
     # optional parameters
-    if ($ServiceTypes)      {$Body["service_types"]         = $ServiceTypes}
-    if ($JobNumber)         {$Body["job_number"]            = $JobNumber}
-    if ($AddressLine1)      {$Body["address_line_1"]        = $AddressLine1}
-    if ($AddressLine2)      {$Body["address_line_2"]        = $AddressLine2}
-    if ($City)              {$Body['city']                  = $City}
-    if ($StateOrProvince)   {$Body['state_or_province']     = $StateOrProvince}
-    if ($PostalCode)        {$Body['postal_code']           = $PostalCode}
-    if ($Country)           {$Body['country']               = $Country}
-    if ($BusinessUnitId)    {$Body['business_unit_id']      = $BusinessUnitId}
-    if ($TimeZone)          {$Body['timezone']              = $TimeZone}
-    if ($Language)          {$Body['language']              = $Language}
-    if ($ConstructionType)  {$Body['construction_type']     = $ConstructionType}
-    if ($ContractType)      {$Body['contract_type']         = $ContractType}
-    if ($TemplateProjectId) {$Body['template_project_id']   = $TemplateProjectId}
-    if ($IncludeLocations)  {$Body['include_locations']     = 'true'}
-    if ($IncludeCompanies)  {$Body['include_companies']     = 'true'}
+    if ($JobNumber)         {$acc_args['JobNumber']         = $JobNumber}
+    if ($AddressLine1)      {$acc_args['AddressLine1']      = $AddressLine1}
+    if ($AddressLine2)      {$acc_args['AddressLine2']      = $AddressLine2}
+    if ($City)              {$acc_args['City']              = $City}
+    if ($StateOrProvince)   {$acc_args['StateOrProvince']   = $StateOrProvince}
+    if ($PostalCode)        {$acc_args['PostalCode']        = $PostalCode}
+    if ($Country)           {$acc_args['Country']           = $Country}
+    if ($Timezone)          {$acc_args['Timezone']          = $Timezone}
+    if ($ConstructionType)  {$acc_args['ConstructionType']  = $ConstructionType}
+    if ($TemplateProjectId) {$acc_args['TemplateProjectId'] = $TemplateProjectId}
+    if ($OnBehalfOf)        {$acc_args['OnBehalfOf']        = $OnBehalfOf}
 
-    $AccessToken = Get-AccessToken -Scope "account:read account:write" -ThreeLegged:$ThreeLegged
-
-    $request = @{
-        Uri = "https://developer.api.autodesk.com/hq/v1/accounts/$AccountId/projects"
-        Method = "POST"
-        Headers = @{"Authorization" = "$($AccessToken.token_type) $($AccessToken.access_token)"}
-        Body = ConvertTo-Json $Body
-        ContentType = 'application/json'
-    }
-    $response = Invoke-RestMethod @request
-    # reformat request.Body as PSObject before caching request,response pair
-    $request.Body = $Body
-    # cache request,response pair for debugging
-    $null = $Global:RequestResponseHistory.Add(@{
-        function = $MyInvocation.MyCommand.Name
-        request = $request
-        response = $response
-    })
-
-    $B360Project = $response
+    $B360Project = New-ACCProject @acc_args
 
     if ($B360Project)
     {
-        $null = Add-ProjectAdmin -Hub $Hub -User $Admin -ProjectId $B360Project.id -ServiceType 'doc_manager' `
-            -Force:$Force -ThreeLegged:$ThreeLegged
-        $null = Add-ProjectAdmin -Hub $Hub -User $Admin -ProjectId $B360Project.id -ServiceType 'collab' `
-            -Force:$Force -ThreeLegged:$ThreeLegged
+        # the freshly-created project is not in the Data Management project list yet, so carry the
+        # Hub on the object for the ConvertTo-* coercions inside Add-ACCProjectUser
+        $null = Add-Member -InputObject $B360Project -NotePropertyName 'hub' -NotePropertyValue $Hub -Force
+
+        $null = Add-ACCProjectUser -Hub $Hub -Project $B360Project -User $Admin -Admin `
+            -Force:$Force -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -OnBehalfOf $OnBehalfOf
     }
-    
+
     return $B360Project
 }
 
@@ -778,7 +746,9 @@ function Get-ProjectRoles
     {
         $AccountId = ConvertTo-B360Id $Hub.id
         $ProjectId = ConvertTo-B360Id $Project.id
-        $AccessToken = Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged
+        $AccessToken = # NOTE: hq/v1|v2 account-admin endpoints only accept 2-legged tokens
+        # (see Autodesk request HQ-5133), so -ThreeLegged is ignored here.
+        Get-AccessToken -Scope "account:read" -TwoLegged
         $request = @{
             Uri = "https://developer.api.autodesk.com/hq/v2/accounts/$AccountId/projects/$ProjectId/industry_roles"
             Method = "GET"
