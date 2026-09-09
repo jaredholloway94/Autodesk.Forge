@@ -1176,8 +1176,8 @@ function Search-ProjectFiles
     $search_args = @{
         Folder = $ProjectFiles 
         FileName = $FileName 
-        FileType = $FileType 
-        ParentName = $ParentName 
+        FileType = $FileType
+        ParentName = $FolderName
 		Recursive = $True
         IncludeHidden = $IncludeHidden 
         Force = $Force
