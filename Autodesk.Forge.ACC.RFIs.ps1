@@ -46,9 +46,11 @@ function Get-RFIs
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -143,7 +145,15 @@ function RFICompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -214,9 +224,11 @@ function ConvertTo-RFI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     if ($null -eq $RFI)
@@ -274,9 +286,11 @@ function Get-RFI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -320,9 +334,11 @@ function Get-RFIFromAPI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -414,9 +430,11 @@ function New-RFI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -526,9 +544,11 @@ function Set-RFI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -621,9 +641,11 @@ function Add-RFIResponse
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -694,9 +716,11 @@ function Get-RFIComments
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -773,9 +797,11 @@ function Add-RFIComment
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -842,9 +868,11 @@ function Get-RFIAttachments
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -903,9 +931,11 @@ function Get-RFITypes
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -990,7 +1020,15 @@ function RFITypeCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -1057,9 +1095,11 @@ function Get-RFIWorkflow
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1114,9 +1154,11 @@ function Get-RFICustomAttributes
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1171,9 +1213,11 @@ function Get-MyRFIPermissions
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
