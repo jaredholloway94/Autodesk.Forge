@@ -45,9 +45,11 @@ function Get-Issues
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -140,7 +142,15 @@ function IssueCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -211,9 +221,11 @@ function ConvertTo-Issue
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     if ($null -eq $Issue)
@@ -271,9 +283,11 @@ function Get-Issue
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -317,9 +331,11 @@ function Get-IssueFromAPI
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -424,9 +440,11 @@ function New-Issue
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -556,9 +574,11 @@ function Set-Issue
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -645,9 +665,11 @@ function Get-IssueComments
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -736,9 +758,11 @@ function Add-IssueComment
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -812,9 +836,11 @@ function Get-IssueTypes
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -901,7 +927,15 @@ function IssueTypeCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -966,7 +1000,15 @@ function IssueSubtypeCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -1039,9 +1081,11 @@ function Get-IssueRootCauseCategories
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1129,7 +1173,15 @@ function IssueRootCauseCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion: New-AccessToken3Legged opens a
+    # browser and then blocks on its callback listener, which would freeze the prompt.
+    if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     if (-not $FakeBoundParameters.Project)
     {
@@ -1198,9 +1250,11 @@ function Get-IssueAttributeDefinitions
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1283,9 +1337,11 @@ function Get-IssueAttributeMappings
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1370,9 +1426,11 @@ function Get-MyIssuePermissions
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
