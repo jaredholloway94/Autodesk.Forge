@@ -38,9 +38,11 @@ function Get-HubUsers
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -114,10 +116,21 @@ function HubUserCompleter
         $FakeBoundParameters
     )
 
+    # pull params out of $FakeBoundParameters for shorter reference
+    if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
+    if (-not (Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
+
     $HubUsers = Get-HubUsers `
     -Hub $FakeBoundParameters.Hub `
-    -Force:$FakeBoundParameters.Force `
-    -ThreeLegged:$FakeBoundParameters.ThreeLegged `
+    -Force:$Force `
+    -ThreeLegged:$ThreeLegged `
 
     $HubUserDict = @{}
     $HubUsers | foreach { $HubUserDict.Add("$($_.email)","$($_.name)") }
@@ -172,10 +185,12 @@ function New-User
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Parameter()]
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $AccessToken = Get-AccessToken -Scope "account:write" -ThreeLegged:$ThreeLegged
@@ -225,10 +240,12 @@ function Get-HubUser
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Parameter()]
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -267,9 +284,11 @@ function Get-B360Projects
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -353,9 +372,11 @@ function Get-B360Project
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -391,9 +412,11 @@ function Get-B360ProjectFromAPI
         [Parameter(Mandatory)]
         $ProjectId,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     # coerce $Hub to [Hub] from (tab-completed) [String]
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -452,9 +475,11 @@ function Add-ProjectAdmin
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -635,9 +660,11 @@ function New-B360Project
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -729,9 +756,11 @@ function Get-ProjectRoles
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -802,13 +831,20 @@ function ProjectRoleCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
+    if (-not (Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $Project = ConvertTo-Project -Hub $Hub -Project $Project -Force:$Force -ThreeLegged:$ThreeLegged
     $Hub = $Project.hub
-    
+
     $ProjectRoles = Get-ProjectRoles $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
 
     $ProjectRoleList =  $ProjectRoles | foreach {$_.name}
@@ -854,9 +890,11 @@ function Get-ProjectRole
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -903,9 +941,11 @@ function Get-ProjectUsers
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -999,7 +1039,14 @@ function ProjectUserCompleter
     if ($FakeBoundParameters.Hub) {$Hub = $FakeBoundParameters.Hub}
     if ($FakeBoundParameters.Project) {$Project = $FakeBoundParameters.Project}
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
-    if ($FakeBoundParameters.ThreeLegged) {$ThreeLegged = $true} else {$ThreeLegged = $false}
+    if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
+    if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+
+    # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
+    if (-not (Get-AccessToken -Scope "account:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
+    {
+        return '<#  Not signed in -- run Connect-Forge first  #>'
+    }
 
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -1062,9 +1109,11 @@ function Get-ProjectUser
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     # coerce tab-completed args from strings to objects
@@ -1150,9 +1199,11 @@ function ConvertTo-User
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     
     if ($null -eq $User)
@@ -1226,9 +1277,11 @@ function Format-UserForProjectImport
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1393,10 +1446,12 @@ function Add-ProjectUsers
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Parameter()]
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
 
     # coerce tab-completed args from strings to objects
@@ -1523,10 +1578,12 @@ function Add-ProjectUser
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Parameter()]
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub:$Hub -Force:$Force -ThreeLegged:$ThreeLegged
@@ -1572,10 +1629,12 @@ function Add-UserToAllProjects
         [Switch]
         $Force,
 
-        # Use 3-Legged OAuth flow, instead of default 2-Legged flow
+        # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
+        # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
+        # for the app-level 2-Legged flow.
         [Parameter()]
         [Switch]
-        $ThreeLegged
+        $ThreeLegged = $Global:ForgeThreeLeggedByDefault
     )
     # coerce tab-completed args from strings to objects
     $Hub = ConvertTo-Hub -Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
