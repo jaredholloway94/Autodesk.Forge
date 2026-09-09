@@ -437,7 +437,13 @@ function Get-ProjectFromAPI
         $Hub,
 
         [Parameter(Mandatory)]
+        [ArgumentCompleter({ ProjectNameCompleter @args })]
         $Project,
+
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
 
         # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
@@ -448,8 +454,9 @@ function Get-ProjectFromAPI
     # coerce $Hub to [Hub] from (tab-completed) [String]
     $Hub = ConvertTo-Hub $Hub -Force:$Force -ThreeLegged:$ThreeLegged
     $HubId = $Hub.id | ConvertFrom-B360Id
-    $Project = ConvertTo-
-    $ProjectId = $ProjectId | ConvertFrom-B360Id
+    # coerce $Project to [Project] from (tab-completed) [String]
+    $Project = ConvertTo-Project $Hub $Project -Force:$Force -ThreeLegged:$ThreeLegged
+    $ProjectId = $Project.id | ConvertFrom-B360Id
 
     $AccessToken = Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged
     $request = @{
@@ -804,6 +811,7 @@ function FileNameCompleter
     if ($FakeBoundParameters.Force) {$Force = $true} else {$Force = $false}
     if ($FakeBoundParameters.ContainsKey('ThreeLegged')) {$ThreeLegged = [Bool]$FakeBoundParameters.ThreeLegged} else {$ThreeLegged = $Global:ForgeThreeLeggedByDefault}
     if ($FakeBoundParameters.ContainsKey('TwoLegged')) {$TwoLegged = [Bool]$FakeBoundParameters.TwoLegged} else {$TwoLegged = $false}
+    if ($FakeBoundParameters.IncludeHidden) {$IncludeHidden = $true} else {$IncludeHidden = $false}
 
     # Never start an interactive sign-in from tab-completion (see HubNameCompleter).
     if (-not (Get-AccessToken -Scope "data:read" -ThreeLegged:$ThreeLegged -TwoLegged:$TwoLegged -NonInteractive))
@@ -811,12 +819,13 @@ function FileNameCompleter
         return '<#  Not signed in -- run Connect-Forge first  #>'
     }
 
-    if (-not $args.Folder)
+    if (-not $FakeBoundParameters.Folder)
     {
         '<#  !!! Provide $Folder parameter value first !!!  #>'
     }
     else
     {
+        $Folder = $FakeBoundParameters.Folder
         $FileNames = Get-Files $Folder -IncludeHidden:$IncludeHidden -Force:$Force -ThreeLegged:$ThreeLegged |
         foreach {$_.attributes.displayName}
 
@@ -1169,8 +1178,8 @@ function Search-ProjectFiles
     $search_args = @{
         Folder = $ProjectFiles 
         FileName = $FileName 
-        FileType = $FileType 
-        ParentName = $ParentName 
+        FileType = $FileType
+        ParentName = $FolderName
 		Recursive = $True
         IncludeHidden = $IncludeHidden 
         Force = $Force
