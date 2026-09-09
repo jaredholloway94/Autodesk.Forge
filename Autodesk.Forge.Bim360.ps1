@@ -315,7 +315,7 @@ function Get-B360Projects
                 response = $response
             })
 
-            if ($response.data.Count -ne 0)
+            if ($response.Count -ne 0)
             {
                 $response | foreach {$null = $B360Projects.Add($_)}
                 $i += 100
