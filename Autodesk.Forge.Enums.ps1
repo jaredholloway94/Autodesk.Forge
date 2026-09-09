@@ -32,6 +32,29 @@ $AdminServiceTypes = @{
     
 }
 
+# ACC Issues API - Issue statuses (suggested values; the statuses available to a given issue depend on its subtype)
+# https://aps.autodesk.com/en/docs/acc/v1/reference/http/issues-issues-POST/
+$IssueStatuses = @(
+    "draft",
+    "open",
+    "pending",
+    "in_progress",
+    "in_review",
+    "not_approved",
+    "in_dispute",
+    "answered",
+    "closed",
+    "void",
+    "completed"
+)
+
+# ACC Issues API - assignedToType values
+$IssueAssignedToTypes = @(
+    "user",
+    "company",
+    "role"
+)
+
 # ACC RFIs API - RFI statuses (suggested values; the statuses available depend on the RFI workflow/permissions)
 # https://aps.autodesk.com/en/docs/acc/v1/reference/http/rfis-v2-rfis-POST/
 $RFIStatuses = @(
@@ -5336,6 +5359,72 @@ function AdminServiceTypeCompleter
     }
 
     CommentedCompleterFromValues @completer_args
+}
+
+
+function IssueStatusCompleter
+{
+    param
+    (
+        [string]
+        $CommandName,
+
+        [string]
+        $ParameterName,
+
+        [string]
+        $WordToComplete,
+
+        [System.Management.Automation.Language.CommandAst]
+        $CommandAst,
+
+        [System.Collections.IDictionary]
+        $FakeBoundParameters
+    )
+
+    $completer_args = @{
+        CompletionsList = $IssueStatuses
+        CommandName = $CommandName
+        ParameterName = $ParameterName
+        WordToComplete = $WordToComplete
+        CommandAst = $CommandAst
+        FakeBoundParameters = $FakeBoundParameters
+    }
+
+    StandardCompleter @completer_args
+}
+
+
+function IssueAssignedToTypeCompleter
+{
+    param
+    (
+        [string]
+        $CommandName,
+
+        [string]
+        $ParameterName,
+
+        [string]
+        $WordToComplete,
+
+        [System.Management.Automation.Language.CommandAst]
+        $CommandAst,
+
+        [System.Collections.IDictionary]
+        $FakeBoundParameters
+    )
+
+    $completer_args = @{
+        CompletionsList = $IssueAssignedToTypes
+        CommandName = $CommandName
+        ParameterName = $ParameterName
+        WordToComplete = $WordToComplete
+        CommandAst = $CommandAst
+        FakeBoundParameters = $FakeBoundParameters
+    }
+
+    StandardCompleter @completer_args
 }
 
 
