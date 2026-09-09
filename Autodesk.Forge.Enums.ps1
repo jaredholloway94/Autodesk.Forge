@@ -55,6 +55,25 @@ $IssueAssignedToTypes = @(
     "role"
 )
 
+# ACC RFIs API - RFI statuses (suggested values; the statuses available depend on the RFI workflow/permissions)
+# https://aps.autodesk.com/en/docs/acc/v1/reference/http/rfis-v2-rfis-POST/
+$RFIStatuses = @(
+    "draft",
+    "submitted",
+    "open",
+    "answered",
+    "rejected",
+    "closed",
+    "void"
+)
+
+# ACC RFIs API - assignedTo type values
+$RFIAssignedToTypes = @(
+    "user",
+    "company",
+    "role"
+)
+
 $ConstructionTypes = @(
     "New Construction",
     "Renovation"
@@ -5398,6 +5417,72 @@ function IssueAssignedToTypeCompleter
 
     $completer_args = @{
         CompletionsList = $IssueAssignedToTypes
+        CommandName = $CommandName
+        ParameterName = $ParameterName
+        WordToComplete = $WordToComplete
+        CommandAst = $CommandAst
+        FakeBoundParameters = $FakeBoundParameters
+    }
+
+    StandardCompleter @completer_args
+}
+
+
+function RFIStatusCompleter
+{
+    param
+    (
+        [string]
+        $CommandName,
+
+        [string]
+        $ParameterName,
+
+        [string]
+        $WordToComplete,
+
+        [System.Management.Automation.Language.CommandAst]
+        $CommandAst,
+
+        [System.Collections.IDictionary]
+        $FakeBoundParameters
+    )
+
+    $completer_args = @{
+        CompletionsList = $RFIStatuses
+        CommandName = $CommandName
+        ParameterName = $ParameterName
+        WordToComplete = $WordToComplete
+        CommandAst = $CommandAst
+        FakeBoundParameters = $FakeBoundParameters
+    }
+
+    StandardCompleter @completer_args
+}
+
+
+function RFIAssignedToTypeCompleter
+{
+    param
+    (
+        [string]
+        $CommandName,
+
+        [string]
+        $ParameterName,
+
+        [string]
+        $WordToComplete,
+
+        [System.Management.Automation.Language.CommandAst]
+        $CommandAst,
+
+        [System.Collections.IDictionary]
+        $FakeBoundParameters
+    )
+
+    $completer_args = @{
+        CompletionsList = $RFIAssignedToTypes
         CommandName = $CommandName
         ParameterName = $ParameterName
         WordToComplete = $WordToComplete
