@@ -18,4 +18,5 @@
 . (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.Sheets.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.Issues.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.Admin.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.RFIs.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.C4R.ps1")
