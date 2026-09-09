@@ -16,5 +16,6 @@
 . (Join-Path $PSScriptRoot "Autodesk.Forge.DataManagement.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.Bim360.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.Sheets.ps1")
+. (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.Issues.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.ACC.Submittals.ps1")
 . (Join-Path $PSScriptRoot "Autodesk.Forge.C4R.ps1")

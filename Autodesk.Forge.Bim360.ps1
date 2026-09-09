@@ -315,7 +315,7 @@ function Get-B360Projects
                 response = $response
             })
 
-            if ($response.data.Count -ne 0)
+            if ($response.Count -ne 0)
             {
                 $response | foreach {$null = $B360Projects.Add($_)}
                 $i += 100
@@ -412,6 +412,11 @@ function Get-B360ProjectFromAPI
         [Parameter(Mandatory)]
         $ProjectId,
 
+        # Force reload local cache from source
+        [Alias('f')]
+        [Switch]
+        $Force,
+
         # Use 3-Legged (user) OAuth flow, so results are scoped to what the signed-in Autodesk
         # user can see. Defaults to $Global:ForgeThreeLeggedByDefault; pass -ThreeLegged:$false
         # for the app-level 2-Legged flow.
@@ -500,7 +505,7 @@ function Add-ProjectAdmin
         name = $User.name
         nickname = $User.nickname
         first_name = $User.first_name
-        last_name = $User.lastName
+        last_name = $User.last_name
         uid = $User.uid
         image_url = $User.image_url
         address_line_1 = $User.address_line_1
